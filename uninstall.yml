@@ -1,0 +1,19 @@
+---
+- name: Uninstall Redis
+  gather_facts: false
+  hosts: all
+  vars_files:
+    - data.yml
+  tasks:
+    - name: uninstall redis
+      shell: |
+        systemctl stop redis_{{item.value.port}}
+        systemctl disable redis_{{item.value.port}}
+        rm -rf /etc/redis/redis_{{item.value.port}}.conf
+        rm -rf /etc/systemd/system/redis_{{item.value.port}}.service
+        systemctl daemon-reload
+      when: ansible_host == item.value.ip
+      with_items:
+        - "{{ lookup('dict', masters,wantlist=True) }}"
+        - "{{ lookup('dict', slaves,wantlist=True) }}"
+        - "{{ lookup('dict', sentinels,wantlist=True) }}"

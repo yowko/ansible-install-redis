@@ -1,0 +1,12 @@
+bind {{item.value.ip}}
+port {{item.value.port}}
+
+{% for master in master_dic %}
+dir /data/redis
+sentinel monitor master_{{ loop.index }} {{master.value.ip}} {{master.value.port}} {{ 1 if sentinels|length < 2 else (sentinels|length)-2 }}
+sentinel auth-pass master_{{ loop.index }} {{redispass}}
+sentinel down-after-milliseconds master_{{ loop.index }}  3000
+sentinel parallel-syncs master_{{ loop.index }}  1
+sentinel failover-timeout master_{{ loop.index }}  18000
+sentinel rename-command master_{{loop.index}} CONFIG REXBET_CONFIG
+{% endfor %}

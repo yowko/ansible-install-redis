@@ -1,0 +1,22 @@
+[Unit]
+Description=Redis persistent key-value database
+After=network.target
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+{% if item.value.role == 'sentinel' %}
+ExecStart=/usr/bin/redis-sentinel /etc/redis/redis_{{item.value.port}}.conf --supervised systemd
+{% else %}
+ExecStart=/usr/bin/redis-server /etc/redis/redis_{{item.value.port}}.conf --supervised systemd
+{% endif %}
+
+ExecStop=/usr/libexec/redis-shutdown
+Type=notify
+User=redis
+Group=redis
+RuntimeDirectory=redis_{{item.value.port}}
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target

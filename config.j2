@@ -1,0 +1,26 @@
+dir /data/redis
+bind {{item.value.ip}}
+requirepass {{redispass}}
+{% if item.value.role == 'slave' %}
+replicaof {{item.value.masterip}} {{item.value.masterport}}
+{% endif %}
+masterauth {{redispass}}
+port {{item.value.port}}
+pidfile /var/run/redis_{{item.value.port}}.pid
+{{item.value.rdb}}
+rename-command CONFIG REXBET_CONFIG
+rename-command KEYS REXBET_KEYS
+rename-command SCAN REXBET_SCAN
+rename-command FLUSHDB REXBET_FLUSHDB
+rename-command FLUSHALL REXBET_FLUSHALL
+rename-command SHUTDOWN REXBET_SHUTDOWN
+rename-command BGREWRITEAOF REXBET_BGREWRITEAOF
+rename-command BGSAVE REXBET_BGSAVE
+rename-command DEBUG REXBET_DEBUG
+rename-command SAVE ""
+rename-command EVAL ""
+#rename-command 'SCRIPT FLUSH' ""
+#rename-command 'SCRIPT KILL' ""
+maxclients 10000
+{{item.value.aof}}
+{{item.value.aofpolicy}}

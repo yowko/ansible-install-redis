@@ -1,0 +1,102 @@
+---
+- name: Install Tools
+  gather_facts: false
+  hosts: all
+  vars_files:
+    - data.yml
+  tasks:
+    - name: Install IUS
+      yum:
+        name: https://centos7.iuscommunity.org/ius-release.rpm
+        state: latest
+
+    - name: Install Redis
+      yum:
+        name: redis5
+        state: latest
+
+    - name: Create folder for config
+      file:
+        path: /etc/redis
+        state: directory
+        mode: 0755
+
+    - name: Create Folders
+      shell: install -d -m 0755 -o redis -g redis /data /data/redis
+
+    - name: Remove default redis service
+      shell: |
+        systemctl disable redis 
+        rm -rf /usr/lib/systemd/system/redis.service
+        rm -rf /etc/systemd/system/redis.service.d
+        rm -rf /etc/systemd/system/redis-sentinel.service.d
+
+    - name: Disable SELinux
+      shell: |
+        setenforce 0
+        sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
+
+    - name: Allow Overcommit Memory
+      sysctl:
+        name: vm.overcommit_memory
+        value: "1"
+        state: present
+        reload: yes
+        ignoreerrors: yes
+
+- name: Prepare Configs
+  hosts: all
+  vars_files:
+    - data.yml
+  tasks:
+    - name: Master and Slave config
+      template:
+        src: config.j2
+        dest: "/etc/redis/redis_{{item.value.port}}.conf"
+      when: ansible_host == item.value.ip
+      with_items:
+        - "{{ lookup('dict', masters,wantlist=True) }}"
+        - "{{ lookup('dict', slaves,wantlist=True) }}"
+
+    - name: Sentinel Config
+      vars:
+        master_dic: "{{ lookup('dict', masters,wantlist=True) }}"
+      template:
+        src: sentinel.j2
+        dest: "/etc/redis/redis_{{item.value.port}}.conf"
+        owner: redis
+      when: ansible_host == item.value.ip
+      loop: "{{ lookup('dict', sentinels,wantlist=True) }}"
+    - name: Prepare Services
+      template:
+        src: service.j2
+        dest: "/etc/systemd/system/redis_{{item.value.port}}.service"
+      when: ansible_host == item.value.ip
+      with_items:
+        - "{{ lookup('dict', masters,wantlist=True) }}"
+        - "{{ lookup('dict', slaves,wantlist=True) }}"
+        - "{{ lookup('dict', sentinels,wantlist=True) }}"
+
+- name: Start Services
+  hosts: all
+  vars_files:
+    - data.yml
+  tasks:
+    - name : Reload Service Setting
+      shell: |
+        systemctl daemon-reload
+      when: ansible_host == item.value.ip
+      with_items:
+        - "{{ lookup('dict', masters,wantlist=True) }}"
+        - "{{ lookup('dict', slaves,wantlist=True) }}"
+        - "{{ lookup('dict', sentinels,wantlist=True) }}"
+
+    - name: Restart Redis Service
+      service:
+        name: redis_{{item.value.port}}
+        state: restarted
+      when: ansible_host == item.value.ip
+      with_items:
+        - "{{ lookup('dict', masters,wantlist=True) }}"
+        - "{{ lookup('dict', slaves,wantlist=True) }}"
+        - "{{ lookup('dict', sentinels,wantlist=True) }}"
