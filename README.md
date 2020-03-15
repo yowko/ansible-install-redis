@@ -1,5 +1,7 @@
 # ansible-install-redis
 
+>Install redis via redis with custom config
+
 - install
 
   ```bash
